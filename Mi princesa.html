@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galaxia de Girasoles</title>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Cormorant+Garamond:ital,wght@0,300;1,300&display=swap" rel="stylesheet">
+  <style>
+    *, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #050400;
+      overflow: hidden;
+      font-family: 'Cormorant Garamond', serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    canvas#c { display: block; position: fixed; inset: 0; width: 100%; height: 100%; }
+
+    /* ── PANTALLA INICIO ── */
+    #splash {
+      position: fixed; inset: 0; z-index: 999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+      background: radial-gradient(ellipse at 50% 40%, #1c1a00 0%, #0a0900 55%, #030300 100%);
+    }
+    #splash .deco  { font-size: clamp(1rem,3vw,1.4rem); letter-spacing:.6em; color:#c8a800; opacity:.7; }
+    #splash .title {
+      font-family: 'Great Vibes', cursive;
+      font-size: clamp(2.8rem,10vw,5.5rem);
+      color: #fff;
+      text-shadow: 0 2px 30px rgba(245,200,0,.65), 0 0 60px rgba(200,160,0,.3);
+      text-align: center; line-height: 1.1;
+    }
+    #splash .sub {
+      font-style: italic; font-weight: 300;
+      font-size: clamp(1rem,3.5vw,1.5rem);
+      color: rgba(255,240,160,.75); letter-spacing:.1em;
+    }
+    #btn-open {
+      font-family: 'Cormorant Garamond', serif; font-style: italic;
+      font-size: clamp(1.1rem,4vw,1.6rem);
+      padding: .65em 2.4em; border-radius: 40px;
+      border: 1.5px solid #d4aa00; background: transparent;
+      color: #fde87a; cursor: pointer; letter-spacing: .1em;
+      box-shadow: 0 0 18px rgba(245,200,0,.3), inset 0 0 18px rgba(200,160,0,.12);
+      transition: all .3s; animation: btnP 2.4s ease-in-out infinite;
+    }
+    #btn-open:hover { background: rgba(200,160,0,.18); box-shadow: 0 0 32px rgba(245,200,0,.55); transform: scale(1.04); }
+    @keyframes btnP {
+      0%,100%{ box-shadow: 0 0 18px rgba(245,200,0,.3), inset 0 0 18px rgba(200,160,0,.12); }
+      50%    { box-shadow: 0 0 36px rgba(245,200,0,.6), inset 0 0 28px rgba(200,160,0,.25); }
+    }
+    #splash.hide { animation: splashOut .8s forwards; }
+    @keyframes splashOut { to { opacity:0; pointer-events:none; } }
+
+    /* ── HUD TEXTO ── */
+    #hud {
+      position: fixed; top: 4vh; left: 50%; transform: translateX(-50%);
+      z-index: 10; text-align: center; pointer-events: none;
+      opacity: 0; transition: opacity 1.2s ease;
+      width: 90vw;
+    }
+    #hud.show { opacity: 1; }
+    #hud .nombre {
+      font-family: 'Great Vibes', cursive;
+      font-size: clamp(2.2rem,8vw,4.5rem);
+      color: #ffffff; line-height: 1;
+      text-shadow:
+        0 0 8px  rgba(255,255,255,1),
+        0 0 22px rgba(255,255,255,.9),
+        0 2px 36px rgba(255,220,80,.55),
+        0 0 70px rgba(200,150,0,.28);
+    }
+    #hud .frase {
+      font-style: italic; font-weight: 300;
+      font-size: clamp(.95rem,3.2vw,1.4rem);
+      color: #ffffff; letter-spacing: .06em;
+      margin-top: 6px;
+      text-shadow:
+        0 0 6px  rgba(255,255,255,.95),
+        0 0 18px rgba(255,255,255,.7),
+        0 1px 16px rgba(255,220,80,.45);
+    }
+
+    /* ── BADGE MÚSICA ── */
+    #mbadge {
+      position: fixed; bottom: 1.3rem; right: 1.3rem;
+      z-index: 20; display: none; align-items: center; gap: .45rem;
+      background: rgba(12,10,0,.88); border: 1px solid rgba(220,180,0,.45);
+      border-radius: 30px; padding: .4rem .9rem .4rem .65rem;
+      color: rgba(255,235,120,.9); font-size: .75rem; font-weight: 600;
+      backdrop-filter: blur(8px); cursor: pointer;
+      box-shadow: 0 0 14px rgba(220,180,0,.25);
+      transition: box-shadow .3s, border-color .3s;
+    }
+    #mbadge.on  { display: flex; }
+    #mbadge:hover { border-color: rgba(255,220,0,.8); box-shadow: 0 0 22px rgba(220,180,0,.45); }
+    .mb { display:flex; align-items:flex-end; gap:2.5px; height:14px; }
+    .mb span { display:block; width:3px; border-radius:3px; background:linear-gradient(to top,#c89000,#fde87a); animation:mb .7s ease-in-out infinite alternate; }
+    .mb span:nth-child(1){height:5px; animation-delay:0s;}
+    .mb span:nth-child(2){height:12px;animation-delay:.12s;}
+    .mb span:nth-child(3){height:7px; animation-delay:.28s;}
+    .mb span:nth-child(4){height:14px;animation-delay:.06s;}
+    .mb span:nth-child(5){height:4px; animation-delay:.2s;}
+    @keyframes mb { from{transform:scaleY(.3);opacity:.5;} to{transform:scaleY(1);opacity:1;} }
+    #mbadge.paused .mb span { animation-play-state:paused; opacity:.3; }
+
+    /* hint arrastrar */
+    #hint {
+      position: fixed; bottom: 1.3rem; left: 50%; transform: translateX(-50%);
+      color: rgba(255,230,100,.45); font-size: .78rem; font-style: italic;
+      letter-spacing: .08em; pointer-events: none; z-index: 10;
+      opacity: 0; transition: opacity 1s ease;
+    }
+    #hint.show { opacity: 1; }
+  </style>
+</head>
+<body>
+<script>
+const claveCorrecta = "27071201"; // ← cambia esto por tu contraseña
+
+let intento = prompt("🌻 Ingresa la clave para entrar:");
+
+if (intento !== claveCorrecta) {
+  document.body.innerHTML = `
+    <div style="
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+      background:black;
+      color:white;
+      font-size:24px;
+      text-align:center;
+    ">
+      💔 Acceso denegado
+    </div>
+  `;
+} else {
+  alert("💛 Bienvenida mi amor");
+}
+</script>
+
+
+
+<script>window.PHOTO_URL = "foto.jpg";</script>
+
+<audio id="aud" loop><source src="musica.mp3" type="audio/mpeg"></audio>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="deco">✦ &nbsp; ✦ &nbsp; ✦</div>
+  <div class="title">Mi niñs</div>
+  <div class="sub">Una galaxia para ti 🌻</div>
+  <button id="btn-open">✦ &nbsp; Entrar &nbsp; ✦</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="nombre">Mi niñs</div>
+  <div class="frase">Lamento que no sean de verdad, te amo y siempre me esforzare por ti</div>
+</div>
+
+<!-- BADGE MÚSICA -->
+<div id="mbadge" title="Pausar / Reanudar">
+  <div class="mb"><span></span><span></span><span></span><span></span><span></span></div>
+  <span id="mlabel">♪ Reproduciendo</span>
+</div>
+
+<div id="hint">✦ arrastra para girar &nbsp;·&nbsp; pellizca para zoom ✦</div>
+
+<canvas id="c"></canvas>
+
+<script type="importmap">
+{
+  "imports": {
+    "three":          "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/":  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ══════════════════════════════════════════════
+   GIRASOL — dibuja un girasol en canvas 2D
+   y devuelve THREE.CanvasTexture
+══════════════════════════════════════════════ */
+function makeSunflowerTexture(size = 256) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const ctx = cv.getContext('2d');
+  const cx = size / 2, cy = size / 2;
+  const R = size * 0.42;       // radio de pétalo externo
+  const r = size * 0.17;       // radio del disco
+
+  /* pétalos exteriores */
+  const petalColors = ['#f5c800','#f0bc00','#eab200','#f2c200'];
+  for (let i = 0; i < 16; i++) {
+    const angle = (i / 16) * Math.PI * 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    // pétalo como elipse elongada
+    ctx.beginPath();
+    ctx.ellipse(0, -R * 0.62, R * 0.17, R * 0.46, 0, 0, Math.PI * 2);
+    ctx.fillStyle = petalColors[i % petalColors.length];
+    ctx.globalAlpha = 0.93;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /* pétalos interiores (segunda capa, más cortos) */
+  for (let i = 0; i < 16; i++) {
+    const angle = ((i + 0.5) / 16) * Math.PI * 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.ellipse(0, -R * 0.52, R * 0.11, R * 0.3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#c89000';
+    ctx.globalAlpha = 0.58;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.globalAlpha = 1;
+
+  /* disco central */
+  const grad = ctx.createRadialGradient(cx, cy - r * 0.15, r * 0.1, cx, cy, r);
+  grad.addColorStop(0,   '#6a3000');
+  grad.addColorStop(0.5, '#4a1e00');
+  grad.addColorStop(1,   '#2e1000');
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  /* puntos de semillas en espiral de Fibonacci */
+  const seedR = r * 0.85;
+  const phi   = Math.PI * (3 - Math.sqrt(5)); // golden angle
+  const seeds = 60;
+  for (let i = 0; i < seeds; i++) {
+    const t     = i / seeds;
+    const sr    = Math.sqrt(t) * seedR;
+    const angle = i * phi;
+    const sx    = cx + sr * Math.cos(angle);
+    const sy    = cy + sr * Math.sin(angle);
+    const sr2   = (size * 0.013) * (0.5 + 0.5 * t);
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr2, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${100 + i},${50 + i * 0.3},0,0.82)`;
+    ctx.fill();
+  }
+
+  /* aro borde dorado */
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(200,130,0,0.5)';
+  ctx.lineWidth   = size * 0.012;
+  ctx.stroke();
+
+  return new THREE.CanvasTexture(cv);
+}
+
+/* ══════════════════════════════════════════════
+   ESCENA THREE.JS
+══════════════════════════════════════════════ */
+const canvas   = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x050400);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.5, 6000);
+camera.position.set(0, 120, 580);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping   = true;
+controls.dampingFactor   = 0.06;
+controls.minDistance     = 80;
+controls.maxDistance     = 1400;
+controls.target.set(0, 0, 0);
+
+/* Fondo nebulosa amarillo-verde oscura */
+{
+  const nc = document.createElement('canvas');
+  nc.width = nc.height = 2048;
+  const nctx = nc.getContext('2d');
+  nctx.fillStyle = '#050400'; nctx.fillRect(0,0,2048,2048);
+  const nebulas = [
+    ['#1a1600','#3a3000',0.40],
+    ['#0d1000','#1a2000',0.30],
+    ['#100a00','#2a1800',0.28],
+    ['#0a0800','#201600',0.22],
+  ];
+  nebulas.forEach(([c1,c2,op]) => {
+    for (let n = 0; n < 8; n++) {
+      const gx = Math.random()*2048, gy = Math.random()*2048, gr = Math.random()*600+180;
+      const g = nctx.createRadialGradient(gx,gy,0,gx,gy,gr);
+      g.addColorStop(0, c2); g.addColorStop(1,'transparent');
+      nctx.globalAlpha = op*(0.4+Math.random()*0.6);
+      nctx.fillStyle = g; nctx.fillRect(0,0,2048,2048);
+    }
+  });
+  nctx.globalAlpha = 1;
+  scene.background = new THREE.CanvasTexture(nc);
+}
+
+/* Estrellas de fondo con tinte amarillo */
+{
+  const n = 7000, pos = new Float32Array(n*3), col = new Float32Array(n*3);
+  for (let i = 0; i < n; i++) {
+    pos[i*3]   = (Math.random()-0.5)*5000;
+    pos[i*3+1] = (Math.random()-0.5)*5000;
+    pos[i*3+2] = (Math.random()-0.5)*5000;
+    const warm = Math.random() > 0.45;
+    col[i*3]   = warm ? 1.0 : 0.9;
+    col[i*3+1] = warm ? 0.92 : 0.92;
+    col[i*3+2] = warm ? 0.55 : 1.0;
+  }
+  const sg = new THREE.BufferGeometry();
+  sg.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  sg.setAttribute('color',    new THREE.BufferAttribute(col,3));
+  scene.add(new THREE.Points(sg, new THREE.PointsMaterial({
+    size:1.3, vertexColors:true, transparent:true, opacity:0.75,
+    blending:THREE.AdditiveBlending, depthWrite:false
+  })));
+}
+
+/* ── GIRASOLES EN GALAXIA ESPIRAL ── */
+const sfTex    = makeSunflowerTexture(256);
+const sfGroup  = new THREE.Group();
+scene.add(sfGroup);
+
+const TOTAL  = 280;   // nº total de girasoles
+const ARMS   = 5;
+const TWIST  = 2.0;
+const MAX_R  = 500;
+
+const sizes = [28, 34, 40, 22, 32]; // variedad de tamaños
+
+for (let i = 0; i < TOTAL; i++) {
+  const mat = new THREE.SpriteMaterial({
+    map: sfTex,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.NormalBlending,
+    opacity: 0.88 + Math.random() * 0.12
+  });
+  const sp = new THREE.Sprite(mat);
+
+  const arm   = i % ARMS;
+  const t     = Math.pow(i / TOTAL, 0.6);
+  const dist  = t * MAX_R + 20;
+  const aa    = (arm / ARMS) * Math.PI * 2 + (dist / MAX_R) * TWIST * Math.PI * 2;
+  const spr   = dist * 0.07 + 8;
+
+  sp.position.set(
+    Math.cos(aa) * dist + (Math.random()-0.5) * spr,
+    (Math.random()-0.5) * (dist * 0.12 + 15),
+    Math.sin(aa) * dist + (Math.random()-0.5) * spr
+  );
+
+  const s = sizes[Math.floor(Math.random() * sizes.length)] + Math.random() * 8;
+  sp.scale.setScalar(s);
+
+  // guardar datos para animación individual
+  sp.userData = {
+    baseY:   sp.position.y,
+    phase:   Math.random() * Math.PI * 2,
+    speed:   0.4 + Math.random() * 0.6,
+    baseS:   s,
+  };
+
+  sfGroup.add(sp);
+}
+
+/* Partículas doradas flotando */
+{
+  const n = 3000, pos = new Float32Array(n*3), col = new Float32Array(n*3);
+  const palette = [
+    [1.0,0.82,0.0],[0.95,0.72,0.0],[1.0,0.90,0.3],[0.88,0.65,0.0],[1.0,1.0,0.7]
+  ];
+  for (let i=0;i<n;i++){
+    const r = Math.random()*550;
+    const a = Math.random()*Math.PI*2;
+    pos[i*3]   = Math.cos(a)*r+(Math.random()-0.5)*60;
+    pos[i*3+1] = (Math.random()-0.5)*180;
+    pos[i*3+2] = Math.sin(a)*r+(Math.random()-0.5)*60;
+    const c = palette[Math.floor(Math.random()*palette.length)];
+    col[i*3]=c[0]; col[i*3+1]=c[1]; col[i*3+2]=c[2];
+  }
+  const pg = new THREE.BufferGeometry();
+  pg.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  pg.setAttribute('color',    new THREE.BufferAttribute(col,3));
+  scene.add(new THREE.Points(pg, new THREE.PointsMaterial({
+    size:1.5, vertexColors:true, transparent:true, opacity:0.55,
+    blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+  })));
+}
+
+/* ── CENTRO DE GALAXIA — FOTO PLANA (Sprite, siempre mira la cámara) ── */
+let centerSprite = null;
+let glowRing1    = null;
+let glowRing2    = null;
+const centerGroup = new THREE.Group();
+scene.add(centerGroup);
+
+// Discos de glow dorado bajo la foto
+function makeGlowDisk(inner, outer, colorA, colorB, alpha) {
+  const geo = new THREE.RingGeometry(inner, outer, 128);
+  const cv  = document.createElement('canvas'); cv.width = cv.height = 512;
+  const cx2 = cv.getContext('2d');
+  const mid = 256, rIn = inner/outer*256, rOut = 256;
+  const g = cx2.createRadialGradient(mid,mid,rIn, mid,mid,rOut);
+  g.addColorStop(0, colorA); g.addColorStop(0.6, colorB); g.addColorStop(1,'rgba(0,0,0,0)');
+  cx2.fillStyle = g; cx2.fillRect(0,0,512,512);
+  const mat = new THREE.MeshBasicMaterial({
+    map: new THREE.CanvasTexture(cv), side: THREE.DoubleSide,
+    transparent: true, opacity: alpha,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.rotation.x = Math.PI / 2;
+  return m;
+}
+
+glowRing1 = makeGlowDisk(28, 105, 'rgba(255,220,0,0.85)', 'rgba(255,160,0,0.35)', 0.65);
+glowRing2 = makeGlowDisk(105, 200, 'rgba(255,180,0,0.45)', 'rgba(255,100,0,0.08)', 0.45);
+centerGroup.add(glowRing1);
+centerGroup.add(glowRing2);
+
+// Anillos orbitales decorativos (Torus)
+const ring1 = new THREE.Mesh(
+  new THREE.TorusGeometry(72, 2.0, 16, 120),
+  new THREE.MeshStandardMaterial({ color:0xf5c800, emissive:0xc89000, emissiveIntensity:0.8, roughness:0.2, metalness:0.7 })
+);
+ring1.rotation.x = Math.PI / 2.8;
+centerGroup.add(ring1);
+
+const ring2 = new THREE.Mesh(
+  new THREE.TorusGeometry(86, 1.1, 16, 120),
+  new THREE.MeshStandardMaterial({ color:0xfde87a, emissive:0xd4aa00, emissiveIntensity:0.6, roughness:0.3, metalness:0.5 })
+);
+ring2.rotation.x = Math.PI / 1.8;
+ring2.rotation.z = Math.PI / 4;
+centerGroup.add(ring2);
+
+// Crea textura circular recortada de la foto (o fallback dorado)
+function makeCircularTex(imgUrl, callback) {
+  const S   = 512;
+  const cv  = document.createElement('canvas'); cv.width = cv.height = S;
+  const ctx = cv.getContext('2d');
+
+  function draw(img) {
+    ctx.clearRect(0,0,S,S);
+    // recorte circular
+    ctx.save();
+    ctx.beginPath(); ctx.arc(S/2, S/2, S/2 - 12, 0, Math.PI*2); ctx.closePath(); ctx.clip();
+    if (img) {
+      ctx.drawImage(img, 0, 0, S, S);
+    } else {
+      // fallback: girasol dorado sólido
+      const g = ctx.createRadialGradient(S/2,S/2,0, S/2,S/2,S/2);
+      g.addColorStop(0,'#ffe060'); g.addColorStop(0.5,'#f5c800'); g.addColorStop(1,'#c89000');
+      ctx.fillStyle = g; ctx.fillRect(0,0,S,S);
+      // semillas en espiral
+      const phi2 = Math.PI*(3-Math.sqrt(5));
+      for (let i=0;i<55;i++){
+        const sr = Math.sqrt(i/55)*(S/2-24);
+        const sx = S/2 + sr*Math.cos(i*phi2);
+        const sy = S/2 + sr*Math.sin(i*phi2);
+        ctx.beginPath(); ctx.arc(sx,sy,4,0,Math.PI*2);
+        ctx.fillStyle=`rgba(80,30,0,0.6)`; ctx.fill();
+      }
+    }
+    ctx.restore();
+    // borde dorado brillante
+    ctx.beginPath(); ctx.arc(S/2, S/2, S/2-14, 0, Math.PI*2);
+    ctx.lineWidth = 18; ctx.strokeStyle = '#f5c800';
+    ctx.shadowColor = '#ffd060'; ctx.shadowBlur = 28; ctx.stroke();
+    ctx.shadowBlur = 0;
+    // segundo borde fino blanco
+    ctx.beginPath(); ctx.arc(S/2, S/2, S/2-24, 0, Math.PI*2);
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.stroke();
+
+    callback(new THREE.CanvasTexture(cv));
+  }
+
+  if (!imgUrl) { draw(null); return; }
+  const img = new Image(); img.crossOrigin = 'anonymous';
+  img.onload  = () => draw(img);
+  img.onerror = () => draw(null);
+  img.src = imgUrl;
+}
+
+// Sprite — siempre mira a la cámara automáticamente
+makeCircularTex(window.PHOTO_URL, (tex) => {
+  const mat    = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+  centerSprite = new THREE.Sprite(mat);
+  centerSprite.scale.setScalar(100); // tamaño visible en el centro
+  centerGroup.add(centerSprite);
+});
+
+/* Luces */
+scene.add(new THREE.AmbientLight(0xffe090, 1.4));
+const pl1 = new THREE.PointLight(0xffd060, 3.0, 800); scene.add(pl1);
+const pl2 = new THREE.PointLight(0xffaa20, 2.0, 600); pl2.position.set(150,100,150); scene.add(pl2);
+
+/* Resize */
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ── LOOP ── */
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // galaxia rota despacio
+  sfGroup.rotation.y = t * 0.018;
+
+  // cada girasol flota suavemente y pulsa de escala
+  sfGroup.children.forEach((sp, i) => {
+    const d = sp.userData;
+    sp.position.y = d.baseY + Math.sin(t * d.speed + d.phase) * 5;
+    const pulse = 1 + 0.06 * Math.sin(t * 1.6 + d.phase);
+    sp.scale.setScalar(d.baseS * pulse);
+    sp.material.opacity = 0.82 + 0.16 * Math.abs(Math.sin(t * 0.9 + d.phase));
+  });
+
+  // animar centro — sprite ya mira cámara solo, solo animar glow y anillos
+  if (glowRing1) { glowRing1.rotation.z = t * 0.3;  glowRing1.material.opacity = 0.5 + 0.18 * Math.sin(t * 1.4); }
+  if (glowRing2) { glowRing2.rotation.z = -t * 0.18; glowRing2.material.opacity = 0.28 + 0.12 * Math.sin(t * 0.9); }
+  if (centerSprite) {
+    // pulso de escala suave
+    const pulse = 1 + 0.04 * Math.sin(t * 1.2);
+    centerSprite.scale.setScalar(100 * pulse);
+  }
+  if (ring1) ring1.rotation.z = t * 0.28;
+  if (ring2) ring2.rotation.z = -t * 0.20;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+/* ── MÚSICA Y SPLASH ── */
+const splash = document.getElementById('splash');
+const hud    = document.getElementById('hud');
+const hint   = document.getElementById('hint');
+const mbadge = document.getElementById('mbadge');
+const mlabel = document.getElementById('mlabel');
+const aud    = document.getElementById('aud');
+let played   = false;
+
+document.getElementById('btn-open').addEventListener('click', () => {
+  splash.classList.add('hide');
+  setTimeout(() => splash.style.display='none', 850);
+  hud.classList.add('show');
+  hint.classList.add('show');
+
+  // música — solo primer toque
+  if (!played) {
+    played = true;
+    aud.load(); aud.volume = 0;
+    aud.play().then(() => {
+      mbadge.classList.add('on');
+      let v = 0;
+      const fi = setInterval(() => {
+        v = Math.min(v + 0.04, 0.7);
+        aud.volume = v;
+        if (v >= 0.7) clearInterval(fi);
+      }, 60);
+    }).catch(() => { played = false; });
+  }
+});
+
+mbadge.addEventListener('click', () => {
+  if (aud.paused) { aud.play(); mbadge.classList.remove('paused'); mlabel.textContent='♪ Reproduciendo'; }
+  else            { aud.pause(); mbadge.classList.add('paused');   mlabel.textContent='♪ Pausado'; }
+});
+
+/* Protección */
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => {
+  if (e.key==='F12'||(e.ctrlKey&&e.shiftKey&&e.key==='I')||(e.ctrlKey&&e.key==='u')) e.preventDefault();
+});
+</script>
+</body>
+</html>
